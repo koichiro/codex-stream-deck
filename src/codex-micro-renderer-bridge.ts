@@ -4,6 +4,7 @@ import { readFile } from "node:fs/promises";
 import { join } from "node:path";
 import { promisify } from "node:util";
 import WebSocket from "ws";
+import { resolveScopedApproval } from "./scoped-approval.js";
 import { codexDeckStateRoot } from "./codex-deck-paths.js";
 import { CodexDesktopIpcBridge } from "./codex-desktop-ipc.js";
 import { openCodexThread } from "./codex-open.js";
@@ -1711,6 +1712,17 @@ export class CodexMicroRendererBridge {
     }
     if (result === "metadata-unavailable") throw new Error("Codex model preset metadata or selector is unavailable.");
     return result;
+  }
+
+  async approveForConversation(): Promise<void> {
+    await this.ensureConnected();
+    await this.evaluate(`(async () => {
+      const resolveScopedApproval = (${resolveScopedApproval.toString()});
+      const approve = resolveScopedApproval(document);
+      if (!approve) throw new Error('Conversation-scoped approval is unavailable in the current view.');
+      await approve();
+      return true;
+    })()`);
   }
 
   async runKeycap(keycapId: OfficialKeycapId): Promise<void> {

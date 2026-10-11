@@ -145,6 +145,26 @@ export function renderBuiltinKeycap(name: BuiltinIconName, theme: ThemeMode = "l
   </svg>`);
 }
 
+export function renderApprovalKey(label: "Allow" | "Always" | "Deny"): string {
+  const palette = {
+    Allow: { top: "#209F58", bottom: "#126C38", glyph: "#FFFFFF" },
+    Always: { top: "#B4EB60", bottom: "#83BC32", glyph: "#193A13" },
+    Deny: { top: "#ED5360", bottom: "#B52436", glyph: "#FFFFFF" }
+  }[label];
+  const paths = label === "Deny"
+    ? '<path d="M48 32L96 80M96 32L48 80"/>'
+    : label === "Always"
+      ? '<path d="M28 57L45 74L78 37M66 67L75 76L110 37"/>'
+      : '<path d="M42 57L63 78L102 35"/>';
+  return toDataUrl(`<svg xmlns="http://www.w3.org/2000/svg" width="144" height="144" viewBox="0 0 144 144">
+    <defs><linearGradient id="approval" x1="0" y1="0" x2="0" y2="1"><stop stop-color="${palette.top}"/><stop offset="1" stop-color="${palette.bottom}"/></linearGradient></defs>
+    <rect x="4" y="4" width="136" height="136" rx="18" fill="url(#approval)" stroke="#FFFFFF" stroke-opacity=".35" stroke-width="2"/>
+    <rect x="8" y="8" width="128" height="128" rx="14" fill="none" stroke="#FFFFFF" stroke-opacity=".12"/>
+    <g fill="none" stroke="${palette.glyph}" stroke-width="11" stroke-linecap="round" stroke-linejoin="round">${paths}</g>
+    <text x="72" y="117" text-anchor="middle" font-family="Arial, sans-serif" font-size="25" font-weight="700" fill="${palette.glyph}">${label}</text>
+  </svg>`);
+}
+
 export function renderFallbackKeycap(keycapId: string, theme: ThemeMode = "light", toggleState?: ToggleState): string {
   const surface = SURFACES[theme];
   const label = escapeXml(keycapId);

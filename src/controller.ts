@@ -42,7 +42,7 @@ import {
   type HostSnapshot, type RelayCommand
 } from "./relay-protocol.js";
 import {
-  renderAgentKey, renderBuiltinKeycap, renderFallbackKeycap, renderHostTargetKey, renderImportedKeycap,
+  renderAgentKey, renderApprovalKey, renderBuiltinKeycap, renderFallbackKeycap, renderHostTargetKey, renderImportedKeycap,
   renderRateLimitResetKey, renderUsageLimitKey, renderUsageOverviewKey, type BuiltinIconName
 } from "./render.js";
 import { openCodexThread } from "./codex-open.js";
@@ -1202,6 +1202,13 @@ export class DeckController {
     if (keycapId === "MIND+") return this.adjustReasoning("increase");
     if (keycapId === "MIND-") return this.adjustReasoning("decrease");
     await this.sendToTarget({ kind: "keycap", keycapId }, () => this.runLocalKeycap(keycapId));
+  }
+
+  async approveForConversation(): Promise<void> {
+    if (!this.localHost || this.targetPlatform !== this.localHost.platform) {
+      throw new Error("Conversation-scoped approval requires a connected local Codex target.");
+    }
+    await this.microBridge.approveForConversation();
   }
 
   async createTask(): Promise<void> {
@@ -2441,6 +2448,9 @@ export class DeckController {
     theme: "light" | "dark",
     toggleState?: boolean
   ): Promise<string | null> {
+    if (keycapId === "Allow" || keycapId === "Always" || keycapId === "Deny") {
+      return Promise.resolve(renderApprovalKey(keycapId));
+    }
     const stateKey = toggleState == null ? "unknown" : toggleState ? "on" : "off";
     const cacheKey = `${theme}:${keycapId}:${stateKey}`;
     let pending = this.keycapImages.get(cacheKey);

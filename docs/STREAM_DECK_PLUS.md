@@ -2,6 +2,31 @@
 
 `Codex Dial` is an Encoder-only action for Stream Deck +. Each knob stores its own preset, rotation, press, touch, and feedback settings, so changing one dial does not change the others. Existing Codex Deck keypad actions continue to work alongside it.
 
+## Always · Conversation key
+
+Drag **Always · Conversation** from the Codex Deck action list onto a
+keypad key. The three approval keys display **Allow**, **Always**, and **Deny**. Allow
+approves the current request once; Deny rejects it.
+The keypad artwork uses a large check above **Allow** on green, a double check
+above **Always** on yellow-green, and a cross above **Deny** on red. The glyphs
+are vector paths, so their appearance does not depend on installed emoji fonts.
+It calls the visible native approval card's conversation-scoped action: for
+example **Allow similar commands**, **Allow all edits**, or **Allow this
+conversation**. The request determines the scope; it does not switch Codex to
+global automatic approval and does not select a separate permanent **Always
+allow** network rule.
+
+This action requires the local renderer bridge and exactly one visible,
+enabled approval card with a native scoped action. Missing, ambiguous, hidden,
+or loading cards produce a key alert without falling back to approve-once.
+Remote relay targets are not supported. Ordinary **APPR** and **REJ** retain
+their existing behavior. This compatibility path was inspected against Codex
+26.1007.30912; renderer changes may make the action unavailable.
+
+The dedicated key's automated tests cover callback execution and unavailable
+states. Physical `Always` testing is still required; the earlier hardware
+verification covered only ordinary APPR and REJ.
+
 ## Requirements and setup
 
 - Codex Deck installed and connected to a bridge by following the [macOS](MACOS.md), [Windows](WINDOWS.md), or [multi-host](MULTI_HOST.md) guide.

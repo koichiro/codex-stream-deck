@@ -54,6 +54,7 @@ type ControllerProbe = {
     ): Promise<ReasoningAdjustmentExecution>;
     applyModelPreset?(request: ModelPresetRequest): Promise<ModelPresetExecution>;
     runKeycap?(keycapId: string): Promise<void>;
+    approveForConversation?(): Promise<void>;
     consumeRateLimitReset?(): Promise<void>;
     refresh?(): Promise<MicroSnapshot>;
     requestUsageRefresh?(): Promise<MicroSnapshot>;
@@ -3921,4 +3922,25 @@ test("canceling an earlier preset ticket advances a later dial without waiting o
   assert.equal(state.modelReasoningMutationPending, 0);
   heldDialWork.resolve();
   controller.unregisterDial(laterDial);
+});
+
+test("conversation approval requires a confirmed local target and propagates native unavailability", async () => {
+  const controller = new DeckController();
+  const state = probe(controller);
+  let calls = 0;
+  state.microBridge = {
+    async sendAgent() {},
+    async approveForConversation() { calls++; }
+  };
+  state.localHost = undefined;
+  await assert.rejects(controller.approveForConversation(), /connected local/);
+  state.localHost = HOST;
+  state.targetPlatform = HOST.platform === "darwin" ? "win32" : "darwin";
+  await assert.rejects(controller.approveForConversation(), /connected local/);
+  assert.equal(calls, 0);
+  state.targetPlatform = HOST.platform;
+  await controller.approveForConversation();
+  assert.equal(calls, 1);
+  state.microBridge.approveForConversation = async () => { throw new Error("scope unavailable"); };
+  await assert.rejects(controller.approveForConversation(), /scope unavailable/);
 });

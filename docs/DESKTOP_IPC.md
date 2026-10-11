@@ -24,10 +24,15 @@ but spending credits remains unavailable without the native applicability check.
 The helper has bounded output and a ten-second timeout; only its own child process
 is terminated after the read. Account errors clear usage without degrading a
 connected task bridge. No desktop restart, alternate launcher, credential entry,
-or Codex settings change is required. Current macOS builds place the bundled
-executable at `/Applications/Codex.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex`;
-Codex Deck retains `/Applications/Codex.app/Contents/Resources/codex` as a
-compatibility fallback for older builds.
+or Codex settings change is required. Codex Deck identifies the application by
+the `com.openai.codex` bundle identifier and its declared main executable,
+rather than requiring the visible name `Codex.app`. This also supports Codex
+distributed as `ChatGPT.app`, renamed bundles, and user-local installations.
+The usage reader prefers the running verified bundle; when Codex is closed,
+it looks for a verified installation in `/Applications` or `~/Applications`.
+It uses `Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex` inside
+that bundle and retains `Contents/Resources/codex` for older builds.
+An ordinary ChatGPT app with a different bundle identifier is not accepted.
 
 The IPC fallback does **not** expose active composer authority. Model presets,
 reasoning, native action keys and joystick/encoder commands still

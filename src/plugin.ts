@@ -3,7 +3,7 @@ import { DeckController } from "./controller.js";
 import { CodexDialAction } from "./dial-action.js";
 import {
   Agent1, Agent2, Agent3, Agent4, Agent5, Agent6,
-  Approve, Back, Decline, Dictation, Fast, Fork, Forward, NewTask,
+  Approve, AlwaysApprove, Back, Decline, Dictation, Fast, Fork, Forward, NewTask,
   HostToggle,
   KeycapAddFiles, KeycapAddPhotos, KeycapApprove, KeycapArchive, KeycapBranch, KeycapBrowser,
   KeycapBug, KeycapCodex, KeycapDiff, KeycapDownload, KeycapGitCommit, KeycapLab,
@@ -24,7 +24,7 @@ for (const pluginAction of [
   new CodexDialAction(controller),
   new Agent1(controller), new Agent2(controller), new Agent3(controller),
   new Agent4(controller), new Agent5(controller), new Agent6(controller),
-  new Fast(controller), new Approve(controller), new Decline(controller),
+  new Fast(controller), new Approve(controller), new AlwaysApprove(controller), new Decline(controller),
   new Fork(controller), new Dictation(controller), new Send(controller),
   new Plan(controller), new Reasoning(controller), new ReasoningDown(controller), new ReasoningUp(controller), new NewTask(controller),
   new HostToggle(controller),

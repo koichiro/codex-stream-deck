@@ -177,11 +177,33 @@ abstract class ReasoningAdjustmentAction extends SingletonAction {
   }
 }
 
-abstract class DirectKeycapAction extends SingletonAction {
-  constructor(private readonly controller: DeckController, private readonly keycapId: OfficialKeycapId) { super(); }
+@action({ UUID: "com.simeo.codex-deck.always-approve" })
+export class AlwaysApprove extends SingletonAction {
+  constructor(private readonly controller: DeckController) { super(); }
 
   override onWillAppear(ev: WillAppearEvent): void {
-    if (ev.action.isKey()) this.controller.registerFixedAction(`keycap-${this.keycapId}`, ev.action, { kind: "local", keycapId: this.keycapId });
+    if (ev.action.isKey()) this.controller.registerFixedAction("always-approve", ev.action, { kind: "local", keycapId: "Always" });
+  }
+
+  override onWillDisappear(ev: WillDisappearEvent): void {
+    this.controller.unregisterFixedAction(ev.action);
+  }
+
+  override async onKeyDown(ev: KeyDownEvent): Promise<void> {
+    try { await this.controller.approveForConversation(); }
+    catch (error) {
+      streamDeck.logger.error(`Conversation-scoped approval failed: ${String(error)}`);
+      await ev.action.showAlert();
+    }
+  }
+}
+
+abstract class DirectKeycapAction extends SingletonAction {
+  constructor(private readonly controller: DeckController, private readonly keycapId: OfficialKeycapId,
+    private readonly displayLabel: string = keycapId) { super(); }
+
+  override onWillAppear(ev: WillAppearEvent): void {
+    if (ev.action.isKey()) this.controller.registerFixedAction(`keycap-${this.keycapId}`, ev.action, { kind: "local", keycapId: this.displayLabel });
   }
 
   override onWillDisappear(ev: WillDisappearEvent): void {
@@ -212,8 +234,8 @@ abstract class DirectKeycapAction extends SingletonAction {
 @action({ UUID: "com.simeo.codex-deck.reasoning-up" }) export class ReasoningUp extends ReasoningAdjustmentAction { constructor(c: DeckController) { super(c, "increase"); } }
 
 @action({ UUID: "com.simeo.codex-deck.keycap-fast" }) export class KeycapFast extends DirectKeycapAction { constructor(c: DeckController) { super(c, "FAST"); } }
-@action({ UUID: "com.simeo.codex-deck.keycap-approve" }) export class KeycapApprove extends DirectKeycapAction { constructor(c: DeckController) { super(c, "APPR"); } }
-@action({ UUID: "com.simeo.codex-deck.keycap-reject" }) export class KeycapReject extends DirectKeycapAction { constructor(c: DeckController) { super(c, "REJ"); } }
+@action({ UUID: "com.simeo.codex-deck.keycap-approve" }) export class KeycapApprove extends DirectKeycapAction { constructor(c: DeckController) { super(c, "APPR", "Allow"); } }
+@action({ UUID: "com.simeo.codex-deck.keycap-reject" }) export class KeycapReject extends DirectKeycapAction { constructor(c: DeckController) { super(c, "REJ", "Deny"); } }
 @action({ UUID: "com.simeo.codex-deck.keycap-split" }) export class KeycapSplit extends DirectKeycapAction { constructor(c: DeckController) { super(c, "SPLIT"); } }
 @action({ UUID: "com.simeo.codex-deck.keycap-new-task" }) export class KeycapNewTask extends DirectKeycapAction { constructor(c: DeckController) { super(c, "NEW"); } }
 @action({ UUID: "com.simeo.codex-deck.keycap-reasoning-up" }) export class KeycapReasoningUp extends DirectKeycapAction { constructor(c: DeckController) { super(c, "MIND+"); } }

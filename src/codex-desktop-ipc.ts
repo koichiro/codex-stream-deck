@@ -8,6 +8,7 @@ import { promisify } from "node:util";
 import type { MicroSnapshot, UsageSnapshot } from "./types.js";
 import { CodexAppServerUsageReader } from "./codex-app-server-usage.js";
 import { IpcStatusFrameReader } from "./codex-ipc-status-frame-reader.js";
+import { discoverCodexMacApplication } from "./codex-macos-app.js";
 
 const exec = promisify(execFile);
 const UUID = /^[0-9a-f]{8}(?:-[0-9a-f]{4}){3}-[0-9a-f]{12}$/i;
@@ -110,10 +111,7 @@ async function readRecentThreads(): Promise<Thread[]> {
 }
 
 async function verifyCodexApp(): Promise<void> {
-  const { stdout } = await exec("/bin/ps", ["-axo", "comm="], { timeout: 2000, maxBuffer: 4 * 1024 * 1024 });
-  if (!stdout.split("\n").some(line => /\/Codex\.app\/Contents\/MacOS\/ChatGPT$/.test(line.trim()))) {
-    throw new Error("Codex is not running");
-  }
+  await discoverCodexMacApplication(true);
 }
 
 /** Task status/navigation transport. Deliberately does not claim active composer authority. */

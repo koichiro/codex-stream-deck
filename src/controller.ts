@@ -42,7 +42,7 @@ import {
   type HostSnapshot, type RelayCommand
 } from "./relay-protocol.js";
 import {
-  renderAgentKey, renderBuiltinKeycap, renderFallbackKeycap, renderHostTargetKey, renderImportedKeycap,
+  renderAgentKey, renderApprovalKey, renderBuiltinKeycap, renderFallbackKeycap, renderHostTargetKey, renderImportedKeycap,
   renderRateLimitResetKey, renderUsageLimitKey, renderUsageOverviewKey, type BuiltinIconName
 } from "./render.js";
 import { openCodexThread } from "./codex-open.js";
@@ -2448,6 +2448,9 @@ export class DeckController {
     theme: "light" | "dark",
     toggleState?: boolean
   ): Promise<string | null> {
+    if (keycapId === "Allow" || keycapId === "Always" || keycapId === "Deny") {
+      return Promise.resolve(renderApprovalKey(keycapId));
+    }
     const stateKey = toggleState == null ? "unknown" : toggleState ? "on" : "off";
     const cacheKey = `${theme}:${keycapId}:${stateKey}`;
     let pending = this.keycapImages.get(cacheKey);

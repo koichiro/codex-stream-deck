@@ -7,6 +7,9 @@
 Drag **Always · Conversation** from the Codex Deck action list onto a
 keypad key. The three approval keys display **Allow**, **Always**, and **Deny**. Allow
 approves the current request once; Deny rejects it.
+The keypad artwork uses a large check above **Allow** on green, a double check
+above **Always** on yellow-green, and a cross above **Deny** on red. The glyphs
+are vector paths, so their appearance does not depend on installed emoji fonts.
 It calls the visible native approval card's conversation-scoped action: for
 example **Allow similar commands**, **Allow all edits**, or **Allow this
 conversation**. The request determines the scope; it does not switch Codex to

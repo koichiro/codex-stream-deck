@@ -1,6 +1,8 @@
 import type { UsageSnapshot, UsageWindow } from "./types.js";
 import { spawn, type ChildProcessWithoutNullStreams } from "node:child_process";
 import { existsSync } from "node:fs";
+import { join } from "node:path";
+import { discoverCodexMacApplication } from "./codex-macos-app.js";
 
 const CODEX_APP_SERVER_EXECUTABLES = [
   "/Applications/Codex.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex",
@@ -8,9 +10,16 @@ const CODEX_APP_SERVER_EXECUTABLES = [
 ] as const;
 
 export function resolveCodexAppServerExecutable(
-  pathExists: (candidate: string) => boolean = existsSync
+  pathExists: (candidate: string) => boolean = existsSync,
+  appPath?: string
 ): string {
-  return CODEX_APP_SERVER_EXECUTABLES.find(pathExists) ?? CODEX_APP_SERVER_EXECUTABLES[0];
+  const candidates = appPath ? [
+    join(appPath, "Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex"),
+    join(appPath, "Contents/Resources/codex")
+  ] : CODEX_APP_SERVER_EXECUTABLES;
+  const executable = candidates.find(pathExists);
+  if (appPath && !executable) throw new Error("Codex bundled usage helper is unavailable.");
+  return executable ?? CODEX_APP_SERVER_EXECUTABLES[0];
 }
 
 type ReaderOptions = {
@@ -19,6 +28,7 @@ type ReaderOptions = {
   pathExists?: (candidate: string) => boolean;
   now?: () => number;
   timeoutMs?: number;
+  resolveApplication?: () => Promise<string>;
 };
 
 export class CodexAppServerUsageReader {
@@ -73,13 +83,20 @@ export class CodexAppServerUsageReader {
     try { this.options.log?.(message); } catch {}
   }
 
-  private query(): Promise<UsageSnapshot> {
+  private async query(): Promise<UsageSnapshot> {
+    const generation = this.generation;
+    let executable: string;
+    try {
+      const appPath = await (this.options.resolveApplication ?? (async () => (await discoverCodexMacApplication()).appPath))();
+      executable = resolveCodexAppServerExecutable(this.options.pathExists, appPath);
+    } catch { throw new Error("Codex bundled usage helper is unavailable."); }
+    if (this.generation !== generation) throw new Error("Codex usage reader is closed.");
     return new Promise((resolve, reject) => {
       let child: ChildProcessWithoutNullStreams;
       try {
         child = (this.options.spawnChild ?? ((executable, args) => spawn(executable, args, {
           stdio: ["pipe", "pipe", "pipe"], windowsHide: true
-        })))(resolveCodexAppServerExecutable(this.options.pathExists), ["app-server", "--stdio"]);
+        })))(executable, ["app-server", "--stdio"]);
       } catch {
         reject(new Error("Codex usage helper could not start."));
         return;

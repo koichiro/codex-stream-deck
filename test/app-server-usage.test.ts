@@ -9,6 +9,14 @@ import {
   resolveCodexAppServerExecutable
 } from "../src/codex-app-server-usage.js";
 
+function usageReader(options: ConstructorParameters<typeof CodexAppServerUsageReader>[0]) {
+  return new CodexAppServerUsageReader({
+    resolveApplication: async () => "/Applications/Codex.app",
+    pathExists: () => true,
+    ...options
+  });
+}
+
 const bucket = {
   limitId: "codex", limitName: null,
   primary: { usedPercent: 46, windowDurationMins: 10080, resetsAt: 1789436723 },
@@ -29,6 +37,14 @@ test("resolves the bundled Codex helper after the desktop app moves it under cod
     "/Applications/Codex.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex");
   assert.equal(resolveCodexAppServerExecutable((candidate) => candidate.endsWith("/Resources/codex")),
     "/Applications/Codex.app/Contents/Resources/codex");
+});
+
+test("usage helper follows the discovered bundle and fails if both layouts are absent", () => {
+  const app = "/Users/tester/Applications/ChatGPT.app";
+  assert.equal(resolveCodexAppServerExecutable(p => p.includes("/codex-cli/"), app),
+    `${app}/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex`);
+  assert.equal(resolveCodexAppServerExecutable(p => p.endsWith("/Resources/codex"), app), `${app}/Contents/Resources/codex`);
+  assert.throws(() => resolveCodexAppServerExecutable(() => false, app), /unavailable/);
 });
 
 test("normalizes the Codex bucket without borrowing Spark windows or inventing reset applicability", () => {
@@ -81,7 +97,7 @@ function normalReply(request: Record<string, unknown>, child: FakeChild): void {
 
 test("reader sends only initialization and read-only usage RPCs and closes its own child", async () => {
   const child = fakeServer(normalReply);
-  const reader = new CodexAppServerUsageReader({ spawnChild: (exe, args) => {
+  const reader = usageReader({ spawnChild: (exe, args) => {
     assert.equal(exe, "/Applications/Codex.app/Contents/Resources/codex-cli/CodexCLI.app/Contents/MacOS/codex");
     assert.deepEqual(args, ["app-server", "--stdio"]);
     return child.asChild();
@@ -94,7 +110,7 @@ test("reader sends only initialization and read-only usage RPCs and closes its o
 
 test("reader uses the legacy bundled helper when the new app layout is absent", async () => {
   const child = fakeServer(normalReply);
-  const reader = new CodexAppServerUsageReader({ spawnChild: (exe) => {
+  const reader = usageReader({ spawnChild: (exe) => {
     assert.equal(exe, "/Applications/Codex.app/Contents/Resources/codex");
     return child.asChild();
   }, pathExists: (candidate) => candidate.endsWith("/Resources/codex"), now: () => 1000 });
@@ -105,7 +121,7 @@ test("reader uses the legacy bundled helper when the new app layout is absent", 
 test("usage diagnostics report availability transitions without account data or repeated failures", async () => {
   const logs: string[] = [];
   let healthy = false;
-  const reader = new CodexAppServerUsageReader({
+  const reader = usageReader({
     log: message => logs.push(message),
     spawnChild: () => fakeServer(healthy ? normalReply : (request, child) => {
       child.reply({ id: request.id, error: { message: "private-account-detail" } });
@@ -128,7 +144,7 @@ test("reader coalesces requests, caches for 30 seconds, and discards failed stal
   let now = 1000;
   let count = 0;
   const children: FakeChild[] = [];
-  const reader = new CodexAppServerUsageReader({ now: () => now, spawnChild: () => {
+  const reader = usageReader({ now: () => now, spawnChild: () => {
     const child = fakeServer(count++ === 0 ? normalReply : (request, child) => child.reply({ id: request.id, error: { message: "secret" } }));
     children.push(child);
     return child.asChild();
@@ -164,7 +180,7 @@ test("reader bounds hung/malformed children and redacts RPC errors", async () =>
   ];
   for (const [index, behavior] of behaviors.entries()) {
     const child = fakeServer(behavior);
-    const reader = new CodexAppServerUsageReader({ spawnChild: () => child.asChild(), timeoutMs: 20 });
+    const reader = usageReader({ spawnChild: () => child.asChild(), timeoutMs: 20 });
     await assert.rejects(reader.read(true), (error: Error) => /usage/i.test(error.message) && !error.message.includes("SECRET_TOKEN"));
     assert.deepEqual(child.kills, index === behaviors.length - 1 ? [] : ["SIGTERM"]);
     reader.close();
@@ -173,7 +189,7 @@ test("reader bounds hung/malformed children and redacts RPC errors", async () =>
 
 test("synchronous spawn failures stay private and background retries remain throttled", async () => {
   let count = 0;
-  const reader = new CodexAppServerUsageReader({ spawnChild: () => { count++; throw new Error("SECRET_TOKEN"); } });
+  const reader = usageReader({ spawnChild: () => { count++; throw new Error("SECRET_TOKEN"); } });
   assert.equal(await reader.read(), undefined);
   assert.equal(await reader.read(), undefined);
   assert.equal(count, 1);
@@ -186,8 +202,9 @@ test("closing an in-flight reader terminates only its child and permits a fresh 
   const child = fakeServer(() => {});
   const nextChild = fakeServer(normalReply);
   let count = 0;
-  const reader = new CodexAppServerUsageReader({ spawnChild: () => (count++ === 0 ? child : nextChild).asChild() });
+  const reader = usageReader({ spawnChild: () => (count++ === 0 ? child : nextChild).asChild() });
   const pending = reader.read(true);
+  await new Promise(resolve => setImmediate(resolve));
   reader.close();
   const next = reader.read();
   await assert.rejects(pending, /closed/i);
@@ -196,6 +213,20 @@ test("closing an in-flight reader terminates only its child and permits a fresh 
   assert.equal((await reader.read())?.windows[0]?.remainingPercent, 54);
   assert.equal(count, 2);
   reader.close();
+});
+
+test("closing during application discovery never starts a helper afterwards", async () => {
+  let resolveApplication!: (path: string) => void;
+  let spawned = false;
+  const reader = usageReader({
+    resolveApplication: () => new Promise(resolve => { resolveApplication = resolve; }),
+    spawnChild: () => { spawned = true; return fakeServer(normalReply).asChild(); }
+  });
+  const pending = reader.read();
+  reader.close();
+  resolveApplication("/Applications/Codex.app");
+  assert.equal(await pending, undefined);
+  assert.equal(spawned, false);
 });
 
 test("usage normalization rejects malformed values and classifies windows by duration, not primary position", () => {

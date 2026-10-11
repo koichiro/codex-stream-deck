@@ -177,6 +177,27 @@ abstract class ReasoningAdjustmentAction extends SingletonAction {
   }
 }
 
+@action({ UUID: "com.simeo.codex-deck.always-approve" })
+export class AlwaysApprove extends SingletonAction {
+  constructor(private readonly controller: DeckController) { super(); }
+
+  override onWillAppear(ev: WillAppearEvent): void {
+    if (ev.action.isKey()) this.controller.registerFixedAction("always-approve", ev.action, { kind: "local", keycapId: "APPR+" });
+  }
+
+  override onWillDisappear(ev: WillDisappearEvent): void {
+    this.controller.unregisterFixedAction(ev.action);
+  }
+
+  override async onKeyDown(ev: KeyDownEvent): Promise<void> {
+    try { await this.controller.approveForConversation(); }
+    catch (error) {
+      streamDeck.logger.error(`Conversation-scoped approval failed: ${String(error)}`);
+      await ev.action.showAlert();
+    }
+  }
+}
+
 abstract class DirectKeycapAction extends SingletonAction {
   constructor(private readonly controller: DeckController, private readonly keycapId: OfficialKeycapId) { super(); }
 

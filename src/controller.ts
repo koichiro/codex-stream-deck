@@ -1204,6 +1204,13 @@ export class DeckController {
     await this.sendToTarget({ kind: "keycap", keycapId }, () => this.runLocalKeycap(keycapId));
   }
 
+  async approveForConversation(): Promise<void> {
+    if (!this.localHost || this.targetPlatform !== this.localHost.platform) {
+      throw new Error("Conversation-scoped approval requires a connected local Codex target.");
+    }
+    await this.microBridge.approveForConversation();
+  }
+
   async createTask(): Promise<void> {
     if (this.isRemoteTarget()) await this.sendRemote({ kind: "keycap", keycapId: "NEW" });
     else await openCodexThread("new");
